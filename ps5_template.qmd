@@ -56,10 +56,52 @@ alt.renderers.enable("png")
 ### 1. Scraping (PARTNER 1)
 
 ```{python}
-
+import requests
+from bs4 import BeautifulSoup
 ```
 
-  
+  ```{python}
+url = 'https://oig.hhs.gov/fraud/enforcement/'
+response = requests.get(url)
+
+soup = BeautifulSoup(response.text, 'html.parser')
+# Test to make sure it looks right
+soup.text[0:50]
+  ```
+
+```{python}
+# Extract the title of the enforcement action
+tag = soup.find_all('a')
+titles = list(filter(lambda tag: tag.get('href') and '/fraud/enforcement/' in tag['href'], soup.find_all('a')))
+# There were 3 items pulled in that I don't want, so I'm taking them out
+titles = titles[3: ]
+
+# Extract the date of the enforcement action
+date_divs = soup.find_all('div', class_='font-body-sm margin-top-1')
+dates = [div.find('span', class_='text-base-dark padding-right-105').text for div in date_divs if div.find('span', class_='text-base-dark padding-right-105')]
+
+# Extract the category of the enforcement action
+date_divs = soup.find_all('div', class_='font-body-sm margin-top-1')
+categories = [div.find('li').text for div in date_divs if div.find('li')]
+
+# Extract the link associated with the enforcement action
+links = [tag['href'] for tag in titles]
+# Add domain
+links = ['https://oig.hhs.gov' + link for link in links]
+print(links[0])
+```
+
+```{python}
+# Make a data frame
+enforcement_action_df = pd.DataFrame({
+  "Title": titles,
+  "Date": dates,
+  "Category": categories,
+  "Link": links
+})
+print(enforcement_action_df.head())
+```
+
 ### 2. Crawling (PARTNER 1)
 
 ```{python}
