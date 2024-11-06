@@ -105,7 +105,37 @@ print(enforcement_action_df.head())
 ### 2. Crawling (PARTNER 1)
 
 ```{python}
+url = "https://oig.hhs.gov/fraud/enforcement/macomb-county-doctor-and-pharmacist-agree-to-pay-700948-to-settle-false-claims-act-allegations/"
+response = requests.get(url)
 
+soup = BeautifulSoup(response.text, 'html.parser')
+
+li_tags = soup.find_all('li')
+for li in li_tags:
+    if 'Agency:' in li.get_text():
+        # Extract text after "Agency:"
+        agency = li.get_text().split('Agency:')[-1].strip()  
+        agencies.append(agency)
+```
+
+```{python}
+# Create a for loop to extract agency from each link in list
+agencies = []
+
+for link in links:
+    response = requests.get(link)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    li_tags = soup.find_all('li')
+    for li in li_tags:
+      if 'Agency:' in li.get_text():
+          # Extract text after "Agency:"
+          agency = li.get_text().split('Agency:')[-1].strip()  
+          agencies.append(agency)
+
+# Update data frame
+enforcement_action_df["Agency"] = agencies
+print(enforcement_action_df.head())
 ```
 
 ## Step 2: Making the scraper dynamic
