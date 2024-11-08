@@ -305,14 +305,6 @@ print(earliest_action)
 ### 1. Plot the number of enforcement actions over time (PARTNER 2)
 
 ```{python}
-
-```
-
-### 2. Plot the number of enforcement actions categorized: (PARTNER 1)
-
-* based on "Criminal and Civil Actions" vs. "State Enforcement Agencies"
-
-```{python}
 path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2021_1.csv"
 
 df_2021 = pd.read_csv(path)
@@ -334,9 +326,9 @@ alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
             format="%b %Y",
             labelAngle=-45,
             tickCount='month',
-            grid=True,  # Enable grid only for specified ticks
-            gridColor='lightgrey',  # Customize grid color
-            gridDash=[2, 2]  # Customize grid line style  
+            grid=True,
+            gridColor='lightgrey',
+            gridDash=[2, 2]  
         )
     ),
     y=alt.Y('count_ea:Q', title='Number of Enforcement Actions'),
@@ -348,44 +340,9 @@ alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
 )
 ```
 
-```{python}
-alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
-    YearMonth='yearmonth(Date)'
-).transform_aggregate(
-    count_ea='count()',
-    groupby=['YearMonth']
-).encode(
-    x=alt.X(
-        'YearMonth:T',
-        title='Month and Year (2021-2024)',
-        axis=alt.Axis(
-            format="%b %Y",  # Show abbreviated month and full year
-            labelAngle=-45,
-            tickCount='month',  # Set ticks based on months
-            values=['2021-01', '2021-04', '2021-08', '2021-12', 
-                    '2022-01', '2022-04', '2022-08', '2022-12',
-                    '2023-01', '2023-04', '2023-08', '2023-12',
-                    '2024-01'],
-            grid=True,  # Enable grid only for specified ticks
-            gridColor='lightgrey',  # Customize grid color
-            gridDash=[2, 2]  # Customize grid line style
-        )
-    ),
-    y=alt.Y('count_ea:Q', title='Number of Enforcement Actions'),
-    tooltip=['YearMonth:T', 'count_ea:Q']
-).properties(
-    title='Number of Enforcement Actions Over Time (Aggregated by Month and Year)',
-    width=600,
-    height=300
-)
+### 2. Plot the number of enforcement actions categorized: (PARTNER 1)
 
-```
-
-```{python}
-max_month = max(df_2021['Date'])
-```
-
-* based on five topics
+* based on "Criminal and Civil Actions" vs. "State Enforcement Agencies"
 
 ```{python}
 
