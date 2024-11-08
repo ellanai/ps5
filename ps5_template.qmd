@@ -161,6 +161,7 @@ As a sixth step, given that we are crawling through multiple webpages, we increm
 
 Finally, we create a dataframe with all the information retrieved and saved it as a csv file named as 'enforcement_actions_year_month.csv'
 
+how many times I'm going through ny while loop
 
 * b. Create Dynamic Scraper (PARTNER 2)
 
@@ -176,8 +177,12 @@ def scrape_enforcement_actions(start_date):
     all_titles, all_dates, all_categories, all_links, all_agencies = [], [], [], [], []
     page_num = 1
     
+    counter = 0
+    
     while True:  # Loop through pages
-        # Construct URL for each page
+        counter += 1
+        print(counter)
+
         url = f"{base_url}?page={page_num}"
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -189,6 +194,8 @@ def scrape_enforcement_actions(start_date):
         # Stop if the page has no new data
         if not titles:
             break
+        
+        page_has_new_data = False  # Flag to check if page has any valid actions
         
         for i in range(len(titles)):
             title = titles[i].text.strip()
@@ -219,10 +226,17 @@ def scrape_enforcement_actions(start_date):
                         break
                 
                 all_agencies.append(agency)
+                
+                # Mark this page as having new data to avoid breaking the loop
+                page_has_new_data = True
+
+        # If no valid actions were added, break the loop
+        if not page_has_new_data:
+            break
 
         # Move to the next page
         page_num += 1
-        time.sleep(1)
+        time.sleep(0.5)
 
     # Save to DataFrame with Date in datetime format
     enforcement_action_df = pd.DataFrame({
