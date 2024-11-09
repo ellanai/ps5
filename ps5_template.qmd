@@ -360,8 +360,123 @@ alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
 ### 2. Map by District (PARTNER 2)
 
 ```{python}
+import geopandas as gpd
+import fiona
+import pyogrio
+from shapely import wkt
+import matplotlib.pyplot as plt
+```
+
+```{python}
+# Load the US Attorney df
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\US_Attorney_Districts_Shapefile_simplified_20241108.csv"
+
+us_attorney_df = pd.read_csv(path)
+
+## Rename our interest variable
+us_attorney_df.rename(columns={'Judicial District ': 'District'}, inplace=True)
+
+## Rename one of the districts so it matches our original df
+us_attorney_df['District'] = us_attorney_df['District'].replace({
+    'District of District of Columbia': 'District of Columbia'
+})
+
+# Apply a function to create a new column in your DataFrame
+def extract_district(agency):
+    if isinstance(agency, str):
+        if "Attorney's Office," in agency:
+            return agency.split("Attorney's Office,")[-1].strip()
+        elif 'Attorney General,' in agency:
+            return agency.split('Attorney General,')[-1].strip()
+        elif 'Western District of Oklahoma' in agency:
+            return 'Western District of Oklahoma'
+        elif 'Western District of Pennsylvania' in agency:
+            return 'Western District of Pennsylvania'
+        elif 'District of Connecticut' in agency:
+            return 'District of Connecticut'
+        elif 'District of New Jersey' in agency:
+            return 'District of New Jersey'
+        elif 'Eastern District of New York' in agency:
+            return 'Eastern District of New York'
+        elif 'Eastern District of North Carolina' in agency:
+            return 'Eastern District of North Carolina'
+    return None
+
+df_2021['District'] = df_2021['Agency'].apply(extract_district)
+
+## Filter out only the Judicial District
+df_2021_districts = df_2021[df_2021['District'].notna()]
+
+## Renaming remaining districts
+district_replacements = {
+    'District of Massachusetts †††': 'District of Massachusetts',
+    'District of South Dakota ††': 'District of South Dakota',
+    'Southern District of New York ††': 'Southern District of New York',
+    'Western District of Virginia ††': 'Western District of Virginia',
+    'District of Idaho Boise': 'District of Idaho'
+}
+
+df_2021_districts['District'] = df_2021_districts['District'].replace(district_replacements)
+
+df_2021_districts_2 = df_2021_districts.groupby('District').size().reset_index(name = 'count_ea')
+
+# Merge with US Attorney's database
+merge_partner2 = pd.merge(us_attorney_df, df_2021_districts_2, on='District', how='left')
+
+# Transform my df y geodataframe format
+merge_partner2['the_geom'] = merge_partner2['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
+print(merge_partner2['the_geom'].apply(type).value_counts())
+
+merge_partner2_geo = gpd.GeoDataFrame(merge_partner2, geometry='the_geom')
+
 
 ```
+
+```{python}
+# Finally, we create the choropleth
+exclude_states = ["District of Alaska", 
+"District of Hawaii", 
+"District of Puerto Rico",
+"District of US Virgin Islands",
+"District of Guam",
+"District of Northern Marianas Islands"]
+
+merge_partner2_geo = merge_partner2_geo[~merge_partner2_geo["District"].isin(exclude_states)]
+
+# Plot the choropleth
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+merge_partner2_geo.plot(
+    column="count_ea",
+    cmap="YlOrRd", 
+    linewidth=0.8,
+    ax=ax,
+    edgecolor="0.8",
+    legend=True,
+    # Add shading for states with NaN values
+    missing_kwds={
+        "color": "lightgray",
+        "edgecolor": "0.7",  
+    }
+)
+
+# Customize the plot
+ax.set_title("Number of Enforcement Actions by U.S. Attorney District since Jan. 2021", fontsize=15)
+ax.set_axis_off()
+
+# Add note -- code help from ChatGPT
+ax.annotate(
+    'NOTE: Six Judicial Districts were removed due to: \n(i) only 1 enforcement action or NA value, and \n(ii) visualization purposes.', 
+    xy=(0.5, -0.06),  # Positioning the note (x, y)
+    xycoords='axes fraction',  # Coordinates relative to the axes
+    ha='right',  # Horizontal alignment
+    va='center',  # Vertical alignment
+    fontsize=12,  # Font size
+    color='black',  # Font color
+    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.5')  # Background box
+)
+plt.show()
+```
+
 
 ## Extra Credit
 
