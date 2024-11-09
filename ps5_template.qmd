@@ -537,18 +537,98 @@ CCA_chart = alt.Chart(df_CCA_grouped).mark_line().encode(
 CCA_SEA_chart | CCA_chart
 ```
 
-```{python}
-
-```
-
 ## Step 4: Create maps of enforcement activity
 
 ### 1. Map by State (PARTNER 1)
 
 ```{python}
+# Cleaning the Agency column
+# Filter out U.S.-level entries, N/A entries, district-level agencies, and department-level agencies
+df_state = df[~df["Agency"].str.contains("U.S.", case=False) &
+              (df["Agency"] != "N/A") &
+              ~df["Agency"].str.contains("District", case=False) &
+              ~df["Agency"].str.contains("Department", case=False)]
 
+# Take out 'State of' for each state
+df_state["Agency"] = df_state["Agency"].str.replace("State of", "", regex=False)
+# Take out 'Attorney General' for each state
+df_state["Agency"] = df_state["Agency"].str.replace("Attorney General", "", regex=False)
+# Adjust typo in one case of Nevada
+df_state["Agency"] = df_state["Agency"].str.replace("Attorney Genera", "", regex=False)
+
+# Individual case data cleaning
+df_state = df_state[~df_state["Agency"].str.contains("North California", case=False)]
+df_state = df_state[~df_state["Agency"].str.contains("South California", case=False)]
+df_state["Agency"] = df_state["Agency"].str.replace("Washington State", "Washington")
+
+# Remove spaces
+# List of states with multiple words
+exceptions = [
+    "New York", "New Jersey", "New Mexico", "Rhode Island", "North Carolina",
+    "South Carolina", "West Virginia", "New Hampshire"
+]
+# Strip whitespace for all other states
+df_state["Agency"] = df_state["Agency"].apply(lambda x: x.strip() if x not in exceptions else x)
+
+# Create df for grouped enforcement actions by state
+df_state_grouped = df_state.groupby("Agency").size().reset_index(name="Count")
+# Rename 'Agency' to 'NAME' for merge
+df_state_grouped.rename(columns={"Agency": "NAME"}, inplace=True)
+# Rename Hawaii for merge
+# Using .iloc[] to access row 8 and the first column (index 0)
+df_state_grouped.iloc[8, 0] = "Hawaii"
 ```
 
+```{python}
+import geopandas as gpd
+import fiona
+import pyogrio
+shp = gpd.read_file("/Users/evylanai/MPP Autumn '24/Python II/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+```
+
+```{python}
+# Merge grouped state df with .shp file
+shp_state_actions = pd.merge(shp, df_state_grouped, on="NAME", how="left")
+# Exlcuding some states for visuals + P.R. because it's not a state
+exclude_states = ["Alaska", "Hawaii", "Puerto Rico"]
+shp_state_actions = shp_state_actions[~shp_state_actions["NAME"].isin(exclude_states)]
+
+import matplotlib.pyplot as plt
+
+# Plot the choropleth
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+shp_state_actions.plot(
+    column="Count",
+    cmap="YlOrRd", 
+    linewidth=0.8,
+    ax=ax,
+    edgecolor="0.8",
+    legend=True,
+    # Add shading for states with NaN values
+    missing_kwds={
+        "color": "lightgray",
+        "edgecolor": "0.7",  
+    }
+)
+
+# Customize the plot
+ax.set_title("Number of Actions Enforced by State Agencies since Jan. 2021", fontsize=15)
+ax.set_axis_off()
+
+# Add note -- code help from ChatGPT
+ax.annotate(
+    'NOTE: Alaska and Hawaii not included \nfor visualization purposes. Alaska has no \nactions recorded, and Hawaii has one.', 
+    xy=(0.5, -0.06),  # Positioning the note (x, y)
+    xycoords='axes fraction',  # Coordinates relative to the axes
+    ha='right',  # Horizontal alignment
+    va='center',  # Vertical alignment
+    fontsize=12,  # Font size
+    color='black',  # Font color
+    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.5')  # Background box
+)
+plt.show()
+
+```
 
 ### 2. Map by District (PARTNER 2)
 
