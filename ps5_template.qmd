@@ -557,8 +557,10 @@ df_state["Agency"] = df_state["Agency"].str.replace("Attorney General", "", rege
 df_state["Agency"] = df_state["Agency"].str.replace("Attorney Genera", "", regex=False)
 
 # Individual case data cleaning
+# North and South Carolina or likely district-level
 df_state = df_state[~df_state["Agency"].str.contains("North California", case=False)]
 df_state = df_state[~df_state["Agency"].str.contains("South California", case=False)]
+# Washington and Washington State are the same
 df_state["Agency"] = df_state["Agency"].str.replace("Washington State", "Washington")
 
 # Remove spaces
