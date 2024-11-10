@@ -1,7 +1,7 @@
 ---
 title: "Problem Set 5"
 author: "Evy Lanai & Alberto Saldarriaga"
-date: "November 9, 2024"
+date: "November 10, 2024"
 format: 
   pdf:
     include-in-header: 
@@ -31,7 +31,7 @@ output:
 3. Partner 1 will accept the `ps5` and then share the link it creates with their partner. You can only share it with one partner so you will not be able to change it after your partner has accepted. 
 4. "This submission is our work alone and complies with the 30538 integrity policy." Add your initials to indicate your agreement: \*\*EL\*\* \*\*AS\*\*
 5. "I have uploaded the names of anyone else other than my partner and I worked with on the problem set **[here](https://docs.google.com/forms/d/185usrCREQaUbvAXpWhChkjghdGgmAZXA3lPWpXLLsts/edit)**"  (1 point)
-6. Late coins used this pset: \*\*1\*\* Late coins left after submission: \*\*1\*\*
+6. Late coins used this pset: \*\*1\*\* Late coins left after submission: \*\*2\*\*
 7. Knit your `ps5.qmd` to an PDF file to make `ps5.pdf`, 
     * The PDF should not be more than 25 pages. Use `head()` and re-size figures when appropriate. 
 8. (Partner 1): push  `ps5.qmd` and `ps5.pdf` to your github repo.
@@ -212,7 +212,7 @@ def scrape_enforcement_actions(year, month):
             for li in agency_soup.find_all('li'):
                 if 'Agency:' in li.get_text():
                     agency = li.get_text().split('Agency:')[-1].strip()
-                    break
+                    break # Stop after finding the first match
             
             all_agencies.append(agency)
 
