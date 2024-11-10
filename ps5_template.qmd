@@ -252,7 +252,7 @@ def scrape_enforcement_actions(year, month):
 # df = scrape_enforcement_actions(year, month)
 
 # This is the modified code that reads the 2023 csv file
-path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2023_1.csv"
+path = r"C:\Users\msald\OneDrive\Documents\GitHub\ps5\enforcement_actions_2023_1.csv"
 
 df = pd.read_csv(path)
 
@@ -378,7 +378,7 @@ def categorize_cca(description):
         # The False Claims Act is most often associated with false claims to Medicare and Medicaid
         'False Claims': 'Health Care Fraud',
         'False Claims Act': 'Health Care Fraud',
-        
+
         'Embezzlement': 'Financial Fraud',
         'Bank': 'Financial Fraud',
         'Financial': 'Financial Fraud',
