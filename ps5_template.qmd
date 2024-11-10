@@ -478,7 +478,10 @@ df_state_grouped.iloc[8, 0] = "Hawaii"
 import geopandas as gpd
 import fiona
 import pyogrio
-shp = gpd.read_file("/Users/evylanai/MPP Autumn '24/Python II/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\cb_2018_us_state_20m\cb_2018_us_state_20m.shp"
+
+shp = gpd.read_file(path)
 ```
 
 ```{python}
@@ -662,11 +665,11 @@ plt.show()
 ### 1. Merge zip code shapefile with population
 ```{python}
 #Load the shapefile
-path = r"/Users/evylanai/MPP Autumn '24/Python II/gz_2010_us_860_00_500k/gz_2010_us_860_00_500k.shp"
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp"
 zipcodes = gpd.read_file(path)
 
 #Load the census data 2020
-path = r"/Users/evylanai/MPP Autumn '24/Python II/DECENNIALDHC2020.P1_2024-11-09T173918/DECENNIALDHC2020.P1-Data.csv"
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\DECENNIALDHC2020.P1_2024-11-09T173918\DECENNIALDHC2020P1-Data.csv"
 census_df_2020 = pd.read_csv(path)
 
 #Extract the ZIPCODE
@@ -684,7 +687,6 @@ merge_extracredit = pd.merge(zipcodes, census_df_2020[['ZCTA5', 'P1_001N']], on=
 
 ### 2. Conduct spatial join
 ```{python}
-
 # Transform my df y geodataframe format
 us_attorney_df['the_geom'] = us_attorney_df['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
 # Turn to GeoDataFrame
