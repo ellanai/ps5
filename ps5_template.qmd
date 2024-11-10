@@ -482,7 +482,41 @@ plt.show()
 
 ### 1. Merge zip code shapefile with population
 ```{python}
+#Load the shapefile
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp"
+zipcodes = gpd.read_file(path)
 
+
+#Load the census data 2020
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\DECENNIALDHC2020.P1_2024-11-09T173918\DECENNIALDHC2020P1-Data.csv"
+census_df_2020 = pd.read_csv(path)
+
+
+
+```
+
+```{python}
+#print(zipcodes.columns)
+#print(zipcodes.head(10))
+
+#print(census_df_2020.columns)
+#print(census_df_2020.head(10))
+
+def extract_zipcode(zipcode):
+    if isinstance(zipcode, str):
+        if "ZCTA5" in zipcode:
+            return zipcode.split("ZCTA5")[-1].strip()
+    return None
+
+census_df_2020['ZCTA5'] = census_df_2020['NAME'].apply(extract_zipcode)
+
+merge_extracredit = pd.merge(zipcodes, census_df_2020[['ZCTA5', 'P1_001N']], on='ZCTA5', how='left')
+
+```
+
+```{python}
+print(merge_extracredit.head(10))
+#print(census_df_2020['ZCTA5'].dtype)
 ```
 
 ### 2. Conduct spatial join
