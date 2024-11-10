@@ -150,13 +150,11 @@ As a fourth step, we create a loop that will allow us to go through all the page
 
 As a fifth step, we start extracting data (all links and dates related to enforcement actions), filtering information only within our desired time range, and convert the extracted date in datetime format.
 
-Just as a caveat, even when our general/initial loop was a While True, to extract the information within each webpage we replicate what we did in **Step 1**, and use a for loop. 
+Just as a caveat, even when our general/initial loop was a While True, to extract the information within each webpage we replicate what we did in **Step 1**, and use a for loop. Additionally, for the agency part, we add "break" to end the loop whenever it finds an entry with information about the agency. That reduces the time of the loop by not allowing it to overwrite the already found entry. 
 
 As a sixth step, given that we are crawling through multiple webpages, we increment the page number to move to the next page and add a 1-second delay to avoid overwhelming the server. Here we use the .sleep() function.
 
 Finally, we create a dataframe with all the information retrieved and saved it as a csv file named as 'enforcement_actions_year_month.csv'
-
-how many times I'm going through ny while loop
 
 * b. Create Dynamic Scraper (PARTNER 2)
 
@@ -172,14 +170,7 @@ def scrape_enforcement_actions(year, month):
     all_titles, all_dates, all_categories, all_links, all_agencies = [], [], [], [], []
     page_num = 1
     
-    counter = 0
-    
     while True:  # Loop through pages
-        counter += 1
-        print(counter)
-
-        # Record start time for the page load
-        page_start_time = time.time()
 
         url = f"{base_url}?page={page_num}"
         response = requests.get(url)
@@ -189,10 +180,6 @@ def scrape_enforcement_actions(year, month):
         titles = list(filter(lambda tag: tag.get('href') and '/fraud/enforcement/' in tag['href'], soup.find_all('a')))[3:]
         date_divs = soup.find_all('div', class_='font-body-sm margin-top-1')
 
-        # Check if the page has no new data
-        if not titles:
-            break
-        
         # Define the start date for comparison
         start_date = datetime(year, month, 1)
         
@@ -201,7 +188,7 @@ def scrape_enforcement_actions(year, month):
             date_text = date_divs[i].find('span', class_='text-base-dark padding-right-105').text.strip()
             category = date_divs[i].find('li').text.strip() if date_divs[i].find('li') else ""
             link = 'https://oig.hhs.gov' + titles[i]['href']
-                        
+            
             # Extract year and month only from the date
             action_date = datetime.strptime(date_text, "%B %d, %Y")
             action_year_month = action_date.replace(day=1)
@@ -225,7 +212,7 @@ def scrape_enforcement_actions(year, month):
             for li in agency_soup.find_all('li'):
                 if 'Agency:' in li.get_text():
                     agency = li.get_text().split('Agency:')[-1].strip()
-                    break  # Stop after finding the first match
+                    break
             
             all_agencies.append(agency)
 
@@ -236,11 +223,6 @@ def scrape_enforcement_actions(year, month):
         # Move to the next page
         page_num += 1
         time.sleep(1)
-
-        # Record end time for the page load and calculate elapsed time
-        page_end_time = time.time()
-        page_load_time = page_end_time - page_start_time
-        print(f"Time taken to change page {page_num}: {page_load_time:.2f} seconds")
 
     # Save to DataFrame with Date in datetime format
     enforcement_action_df = pd.DataFrame({
@@ -258,25 +240,12 @@ def scrape_enforcement_actions(year, month):
     
     return enforcement_action_df
 
-    return enforcement_action_df
-
 # Define the year and month for filtering
 year = 2023
 month = 1
 
-# Record the start time
-start_time = time.time()
-
 # Run the dynamic scraper function for all pages
 df = scrape_enforcement_actions(year, month)
-
-# Record the end time
-end_time = time.time()
-
-# Calculate the elapsed time
-elapsed_time = end_time - start_time
-elapsed_time_m = elapsed_time / 
-print(f"Scraping completed in {elapsed_time_m:.2f} minutes")
 
 # Print the total number of enforcement actions
 print(f"Total enforcement actions since January 2023: {len(df)}")
@@ -586,6 +555,20 @@ def extract_district(agency):
             return agency.split("Attorney's Office,")[-1].strip()
         elif 'Attorney General,' in agency:
             return agency.split('Attorney General,')[-1].strip()
+        elif 'Southern District of Alabama' in agency:
+            return 'Southern District of Alabama'
+        elif 'Southern District of Iowa' in agency:
+            return 'Southern District of Iowa'
+        elif 'District of North Dakota' in agency:
+            return 'District of North Dakota'
+        elif 'Northern District of Mississippi' in agency:
+            return 'Northern District of Mississippi'
+        elif 'Northern District of West Virginia' in agency:
+            return 'Northern District of West Virginia'    
+        elif 'Eastern District of Oklahoma' in agency:
+            return 'Eastern District of Oklahoma'
+        elif 'Western District of Tennessee' in agency:
+            return 'Western District of Tennessee'                         
         elif 'Western District of Oklahoma' in agency:
             return 'Western District of Oklahoma'
         elif 'Western District of Pennsylvania' in agency:
@@ -626,8 +609,6 @@ merge_partner2['the_geom'] = merge_partner2['the_geom'].apply(lambda x: wkt.load
 print(merge_partner2['the_geom'].apply(type).value_counts())
 
 merge_partner2_geo = gpd.GeoDataFrame(merge_partner2, geometry='the_geom')
-
-
 ```
 
 ```{python}
@@ -687,15 +668,8 @@ zipcodes = gpd.read_file(path)
 #Load the census data 2020
 path = r"/Users/evylanai/MPP Autumn '24/Python II/DECENNIALDHC2020.P1_2024-11-09T173918/DECENNIALDHC2020.P1-Data.csv"
 census_df_2020 = pd.read_csv(path)
-```
 
-```{python}
-#print(zipcodes.columns)
-#print(zipcodes.head(10))
-
-#print(census_df_2020.columns)
-#print(census_df_2020.head(10))
-
+#Extract the ZIPCODE
 def extract_zipcode(zipcode):
     if isinstance(zipcode, str):
         if "ZCTA5" in zipcode:
@@ -704,25 +678,17 @@ def extract_zipcode(zipcode):
 
 census_df_2020['ZCTA5'] = census_df_2020['NAME'].apply(extract_zipcode)
 
+#Merge the two shapefiles by zipcode
 merge_extracredit = pd.merge(zipcodes, census_df_2020[['ZCTA5', 'P1_001N']], on='ZCTA5', how='left')
-
-```
-
-```{python}
-print(merge_extracredit.head(10))
-#print(census_df_2020['ZCTA5'].dtype)
 ```
 
 ### 2. Conduct spatial join
 ```{python}
-# Import district data
-districts_csv = pd.read_csv(r"/Users/evylanai/MPP Autumn '24/Python II/US_Attorney_Districts_Shapefile_simplified_20241110.csv")
-# Transform my df y geodataframe format
-from shapely import wkt
 
-districts_csv['the_geom'] = districts_csv['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
+# Transform my df y geodataframe format
+us_attorney_df['the_geom'] = us_attorney_df['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
 # Turn to GeoDataFrame
-districts_shp = gpd.GeoDataFrame(districts_csv, geometry='the_geom')
+districts_shp = gpd.GeoDataFrame(us_attorney_df, geometry='the_geom')
 
 # Conduct spatial join
 pop_byzip = gpd.sjoin(merge_extracredit, districts_shp, how="inner", predicate="intersects")
@@ -732,20 +698,47 @@ pop_byzip = gpd.sjoin(merge_extracredit, districts_shp, how="inner", predicate="
 # Turn population variable to numeric 
 pop_byzip['P1_001N'] = pd.to_numeric(pop_byzip['P1_001N'], errors='coerce')
 # Aggregate population by district
-pop_bydistrict = pop_byzip.groupby("Judicial District ")["P1_001N"].sum().reset_index()
+pop_bydistrict = pop_byzip.groupby("District")["P1_001N"].sum().reset_index()
 # Merge back to get geospatial data
-districts_shp = districts_shp.merge(pop_bydistrict, on="Judicial District ")
-```
-
-```{python}
-
+districts_shp = districts_shp.merge(pop_bydistrict, on="District")
 ```
 
 ### 3. Map the action ratio in each district
 
 ```{python}
+# As a general step, we merge the districts shapefile with our
+# df 2021 with enforcement actions
+merge_extracredit_2 = pd.merge(districts_shp, df_2021_districts_2, on='District', how='left')
 
+# Step 1: Calculate the ratio
+merge_extracredit_2['enforcement_ratio'] = merge_extracredit_2['count_ea'] / merge_extracredit_2['P1_001N']
+
+# Step 2: Set the CRS if it's in WGS84
+merge_extracredit_2 = merge_extracredit_2.set_crs("EPSG:4326", inplace=False)
+
+# Step 3: Reproject to Albers USA (EPSG: 5070)
+merge_extracredit_2 = merge_extracredit_2.to_crs("EPSG:5070", )
+
+# Step 4: Plot the map
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+
+# Plot the choropleth with Albers USA projection
+merge_extracredit_2.plot(column='enforcement_ratio', 
+                         cmap='Blues', 
+                         linewidth=0.8, 
+                         edgecolor='0.8', 
+                         legend=True,
+                         ax=ax)
+
+# Customize the plot
+plt.title("Ratio of Enforcement Actions per Population \nby U.S. Attorney District (since Jan 2021)", fontsize=16)
+ax.axis("off")  # Hide the axis for a cleaner map
+
+# Optional: Adjust the color bar label
+cbar = ax.get_figure().get_axes()[1]
+cbar.set_ylabel('Enforcement Actions per Capita')
+
+plt.show()
 ```
-
 
 
