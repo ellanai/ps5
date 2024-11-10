@@ -66,8 +66,6 @@ url = 'https://oig.hhs.gov/fraud/enforcement/'
 response = requests.get(url)
 
 soup = BeautifulSoup(response.text, 'html.parser')
-# Test to make sure it looks right
-soup.text[0:50]
   ```
 
 ```{python}
@@ -89,7 +87,6 @@ categories = [div.find('li').text for div in date_divs if div.find('li')]
 links = [tag['href'] for tag in titles]
 # Add domain
 links = ['https://oig.hhs.gov' + link for link in links]
-print(links[0])
 ```
 
 ```{python}
@@ -100,44 +97,40 @@ enforcement_action_df = pd.DataFrame({
   "Category": categories,
   "Link": links
 })
+# Print head
 print(enforcement_action_df.head())
 ```
 
 ### 2. Crawling (PARTNER 1)
 
 ```{python}
-url = "https://oig.hhs.gov/fraud/enforcement/macomb-county-doctor-and-pharmacist-agree-to-pay-700948-to-settle-false-claims-act-allegations/"
-response = requests.get(url)
-
-soup = BeautifulSoup(response.text, 'html.parser')
-
-li_tags = soup.find_all('li')
-for li in li_tags:
-    if 'Agency:' in li.get_text():
-        # Extract text after "Agency:"
-        agency = li.get_text().split('Agency:')[-1].strip()  
-        agencies.append(agency)
-```
-
-
-
-```{python}
 # Create a for loop to extract agency from each link in list
+# Create empty list to store agency names
 agencies = []
 
 for link in links:
     response = requests.get(link)
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    li_tags = soup.find_all('li')
-    for li in li_tags:
-      if 'Agency:' in li.get_text():
-          # Extract text after "Agency:"
-          agency = li.get_text().split('Agency:')[-1].strip()  
-          agencies.append(agency)
+    # Fetch agency details for each enforcement action
+    agency = "N/A"
+    agency_response = requests.get(link)
+    agency_soup = BeautifulSoup(agency_response.text, 'html.parser')
+            
+    # Find the agency within <li> tags that contain "Agency:"
+    for li in agency_soup.find_all('li'):
+        if 'Agency:' in li.get_text():
+            agency = li.get_text().split('Agency:')[-1].strip()
+            break  # Stop after finding the first match
+
+    agencies.append(agency)
+
 
 # Update data frame
 enforcement_action_df["Agency"] = agencies
+# Fix the second entry anomaly where date is included in agency name
+enforcement_action_df.iloc[1, 4] = "U.S. Attorney's Office, District of Idaho"
+# Print head
 print(enforcement_action_df.head())
 ```
 
@@ -373,11 +366,6 @@ def scrape_enforcement_actions(year, month):
         page_num += 1
         time.sleep(1)
 
-        # Record end time for the page load and calculate elapsed time
-        page_end_time = time.time()
-        page_load_time = page_end_time - page_start_time
-        print(f"Time taken to change page {page_num}: {page_load_time:.2f} seconds")
-
     # Save to DataFrame with Date in datetime format
     enforcement_action_df = pd.DataFrame({
         "Title": all_titles,
@@ -394,25 +382,12 @@ def scrape_enforcement_actions(year, month):
     
     return enforcement_action_df
 
-    return enforcement_action_df
-
 # Define the year and month for filtering
 year = 2021
 month = 1
 
-# Record the start time
-start_time = time.time()
-
 # Run the dynamic scraper function for all pages
 df = scrape_enforcement_actions(year, month)
-
-# Record the end time
-end_time = time.time()
-
-# Calculate the elapsed time
-elapsed_time = end_time - start_time
-elapsed_time_m = elapsed_time / 60
-print(f"Scraping completed in {elapsed_time_m:.2f} minutes")
 
 # Print the total number of enforcement actions
 print(f"Total enforcement actions since January 2023: {len(df)}")
@@ -506,7 +481,7 @@ df_state["Agency"] = df_state["Agency"].str.replace("Attorney General", "", rege
 df_state["Agency"] = df_state["Agency"].str.replace("Attorney Genera", "", regex=False)
 
 # Individual case data cleaning
-# North and South Carolina or likely district-level
+# North and South California are likely district-level
 df_state = df_state[~df_state["Agency"].str.contains("North California", case=False)]
 df_state = df_state[~df_state["Agency"].str.contains("South California", case=False)]
 # Washington and Washington State are the same
@@ -573,12 +548,11 @@ ax.annotate(
     xycoords='axes fraction',  # Coordinates relative to the axes
     ha='right',  # Horizontal alignment
     va='center',  # Vertical alignment
-    fontsize=12,  # Font size
-    color='black',  # Font color
-    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.5')  # Background box
+    fontsize=12,  
+    color='black',  
+    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.5') 
 )
 plt.show()
-
 ```
 
 ### 2. Map by District (PARTNER 2)
