@@ -739,8 +739,11 @@ merge_extracredit = pd.merge(zipcodes, census_df_2020[['ZCTA5', 'P1_001N']], on=
 ```
 
 ```{python}
-print(merge_extracredit.head(10))
-#print(census_df_2020['ZCTA5'].dtype)
+#print(merge_extracredit.head(10))
+print(merge_extracredit['P1_001N'].dtype)
+#test = us_attorney_df.groupby('ZCTA5').size().reset_index(name='count')
+
+
 ```
 
 ### 2. Conduct spatial join
