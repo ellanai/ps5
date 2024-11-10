@@ -254,13 +254,13 @@ def scrape_enforcement_actions(year, month):
 # This is the modified code that reads the 2023 csv file
 path = r"C:\Users\msald\OneDrive\Documents\GitHub\ps5\enforcement_actions_2023_1.csv"
 
-df = pd.read_csv(path)
+df_2023 = pd.read_csv(path)
 
 # Print the total number of enforcement actions
-print(f"Total enforcement actions since January 2023: {len(df)}")
+print(f"Total enforcement actions since January 2023: {len(df_2023)}")
 
 # Find the earliest enforcement action and print its details
-earliest_action = df.sort_values(by="Date").iloc[0]
+earliest_action = df_2023.sort_values(by="Date").iloc[0]
 print("Earliest enforcement action:")
 print(earliest_action)
 ```
@@ -278,7 +278,7 @@ print(earliest_action)
 # df = scrape_enforcement_actions(year, month)
 
 # This is the modified code, loading the 2021 csv filed
-path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2021_1.csv"
+path = r"C:\Users\msald\OneDrive\Documents\GitHub\ps5\enforcement_actions_2021_1.csv"
 
 df_2021 = pd.read_csv(path)
 
@@ -286,7 +286,7 @@ df_2021 = pd.read_csv(path)
 print(f"Total enforcement actions since January 2023: {len(df_2021)}")
 
 # Find the earliest enforcement action and print its details
-earliest_action = df.sort_values(by="Date").iloc[0]
+earliest_action = df_2021.sort_values(by="Date").iloc[0]
 print("Earliest enforcement action:")
 print(earliest_action)
 ```
@@ -334,7 +334,7 @@ alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
 ```{python}
 # Plot 1
 # Plot Criminal and Civil Actions vs. State Enforcement Agencies
-df_CCA_SEA = df[df["Category"].isin(["Criminal and Civil Actions", "State Enforcement Agencies"])]
+df_CCA_SEA = df_2021[df_2021["Category"].isin(["Criminal and Civil Actions", "State Enforcement Agencies"])]
 # Change Date column to just month can year
 df_CCA_SEA["Date"] = df_CCA_SEA["Date"].dt.to_period("M").astype(str)
 # Group number of actions by month and year
@@ -355,7 +355,7 @@ CCA_SEA_chart = alt.Chart(df_CCA_SEA_grouped).mark_line().encode(
 ```{python}
 # Plot 2
 # Filter out Criminal and Civil Actions
-df_CCA = df[df["Category"] == "Criminal and Civil Actions"]
+df_CCA = df_2021[df_2021["Category"] == "Criminal and Civil Actions"]
 # Re-categorize categories by keyword    
 def categorize_cca(description):
     # Define keyword-to-category mapping
@@ -435,24 +435,32 @@ CCA_SEA_chart | CCA_chart
 ```{python}
 # Cleaning the Agency column
 # Filter out U.S.-level entries, N/A entries, district-level agencies, and department-level agencies
-df_state = df[~df["Agency"].str.contains("U.S.", case=False) &
-              (df["Agency"] != "N/A") &
-              ~df["Agency"].str.contains("District", case=False) &
-              ~df["Agency"].str.contains("Department", case=False)]
+df_state = df_2021[df_2021["Agency"].notna()]
+
+df_state = df_state[~df_state["Agency"].str.contains("U.S.", case=False) &
+                   (df_state["Agency"] != "N/A") &
+                   ~df_state["Agency"].str.contains("District", case=False) &
+                   ~df_state["Agency"].str.contains("Department", case=False)]
 
 # Take out 'State of' for each state
-df_state["Agency"] = df_state["Agency"].str.replace("State of", "", regex=False)
+df_state["Agency"] = df_state["Agency"].str.replace(
+    "State of", "", regex=False)
 # Take out 'Attorney General' for each state
-df_state["Agency"] = df_state["Agency"].str.replace("Attorney General", "", regex=False)
+df_state["Agency"] = df_state["Agency"].str.replace(
+    "Attorney General", "", regex=False)
 # Adjust typo in one case of Nevada
-df_state["Agency"] = df_state["Agency"].str.replace("Attorney Genera", "", regex=False)
+df_state["Agency"] = df_state["Agency"].str.replace(
+    "Attorney Genera", "", regex=False)
 
 # Individual case data cleaning
 # North and South California are likely district-level
-df_state = df_state[~df_state["Agency"].str.contains("North California", case=False)]
-df_state = df_state[~df_state["Agency"].str.contains("South California", case=False)]
+df_state = df_state[~df_state["Agency"].str.contains(
+    "North California", case=False)]
+df_state = df_state[~df_state["Agency"].str.contains(
+    "South California", case=False)]
 # Washington and Washington State are the same
-df_state["Agency"] = df_state["Agency"].str.replace("Washington State", "Washington")
+df_state["Agency"] = df_state["Agency"].str.replace(
+    "Washington State", "Washington")
 
 # Remove spaces
 # List of states with multiple words
@@ -461,7 +469,8 @@ exceptions = [
     "South Carolina", "West Virginia", "New Hampshire"
 ]
 # Strip whitespace for all other states
-df_state["Agency"] = df_state["Agency"].apply(lambda x: x.strip() if x not in exceptions else x)
+df_state["Agency"] = df_state["Agency"].apply(
+    lambda x: x.strip() if x not in exceptions else x)
 
 # Create df for grouped enforcement actions by state
 df_state_grouped = df_state.groupby("Agency").size().reset_index(name="Count")
@@ -607,7 +616,6 @@ merge_partner2 = pd.merge(us_attorney_df, df_2021_districts_2, on='District', ho
 
 # Transform my df y geodataframe format
 merge_partner2['the_geom'] = merge_partner2['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
-print(merge_partner2['the_geom'].apply(type).value_counts())
 
 merge_partner2_geo = gpd.GeoDataFrame(merge_partner2, geometry='the_geom')
 ```
