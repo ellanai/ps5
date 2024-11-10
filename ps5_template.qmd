@@ -647,7 +647,15 @@ plt.show()
 
 ### 2. Conduct spatial join
 ```{python}
+# Import district data
+districts_csv = pd.read_csv(r"/Users/evylanai/MPP Autumn '24/Python II/US_Attorney_Districts_Shapefile_simplified_20241110.csv")
+# Transform my df y geodataframe format
+from shapely import wkt
 
+districts_csv['the_geom'] = districts_csv['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
+# Turn to GeoDataFrame
+districts_shp = gpd.GeoDataFrame(districts_csv, geometry='the_geom')
+#pop_byzip = gpd.sjoin(merge_extracredit, districts_shp, how="inner", predicate="intersects")
 ```
 
 ### 3. Map the action ratio in each district
