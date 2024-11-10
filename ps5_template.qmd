@@ -158,7 +158,7 @@ Finally, we create a dataframe with all the information retrieved and saved it a
 
 * b. Create Dynamic Scraper (PARTNER 2)
 
-```{python}
+```{python, eval=False}
 def scrape_enforcement_actions(year, month):
     # Validate the start date
     if year < 2013:
@@ -239,13 +239,22 @@ def scrape_enforcement_actions(year, month):
     print(f"Data saved to {file_name}")
     
     return enforcement_action_df
+```
 
+```{python}
+# For Knitting purposes, after creating the csv file, 
+# we loaded the file as df. This is the original code that calls the function:
 # Define the year and month for filtering
-year = 2023
-month = 1
+# year = 2023
+# month = 1
 
 # Run the dynamic scraper function for all pages
-df = scrape_enforcement_actions(year, month)
+# df = scrape_enforcement_actions(year, month)
+
+# This is the modified code that reads the 2023 csv file
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2023_1.csv"
+
+df = pd.read_csv(path)
 
 # Print the total number of enforcement actions
 print(f"Total enforcement actions since January 2023: {len(df)}")
@@ -259,107 +268,22 @@ print(earliest_action)
 * c. Test Partner's Code (PARTNER 1)
 
 ```{python}
-def scrape_enforcement_actions(year, month):
-    # Validate the start date
-    if year < 2013:
-        print("Please enter a start date year >= 2013")
-        return
-    
-    # Initialize variables
-    base_url = 'https://oig.hhs.gov/fraud/enforcement/'
-    all_titles, all_dates, all_categories, all_links, all_agencies = [], [], [], [], []
-    page_num = 1
-    
-    counter = 0
-    
-    while True:  # Loop through pages
-        counter += 1
-        print(counter)
-
-        # Record start time for the page load
-        page_start_time = time.time()
-
-        url = f"{base_url}?page={page_num}"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Extract titles, dates, and links on the page
-        titles = list(filter(lambda tag: tag.get('href') and '/fraud/enforcement/' in tag['href'], soup.find_all('a')))[3:]
-        date_divs = soup.find_all('div', class_='font-body-sm margin-top-1')
-
-        # Check if the page has no new data
-        if not titles:
-            break
-        
-        # Define the start date for comparison
-        start_date = datetime(year, month, 1)
-        
-        for i in range(len(titles)):
-            title = titles[i].text.strip()
-            date_text = date_divs[i].find('span', class_='text-base-dark padding-right-105').text.strip()
-            category = date_divs[i].find('li').text.strip() if date_divs[i].find('li') else ""
-            link = 'https://oig.hhs.gov' + titles[i]['href']
-                        
-            # Extract year and month only from the date
-            action_date = datetime.strptime(date_text, "%B %d, %Y")
-            action_year_month = action_date.replace(day=1)
-
-            # Break the loop if action_date is earlier than the specified start date
-            if action_year_month < start_date:
-                break
-
-            # Only add actions from the specified start year and month onward
-            all_titles.append(title)
-            all_dates.append(action_date)
-            all_categories.append(category)
-            all_links.append(link)
-
-            # Fetch agency details for each enforcement action
-            agency = "N/A"
-            agency_response = requests.get(link)
-            agency_soup = BeautifulSoup(agency_response.text, 'html.parser')
-            
-            # Find the agency within <li> tags that contain "Agency:"
-            for li in agency_soup.find_all('li'):
-                if 'Agency:' in li.get_text():
-                    agency = li.get_text().split('Agency:')[-1].strip()
-                    break  # Stop after finding the first match
-            
-            all_agencies.append(agency)
-
-        # If the action_date on this page is earlier than start_date, stop scraping
-        if action_year_month < start_date:
-            break
-
-        # Move to the next page
-        page_num += 1
-        time.sleep(1)
-
-    # Save to DataFrame with Date in datetime format
-    enforcement_action_df = pd.DataFrame({
-        "Title": all_titles,
-        "Date": all_dates,
-        "Category": all_categories,
-        "Link": all_links,
-        "Agency": all_agencies
-    })
-
-    # Save DataFrame to CSV
-    file_name = f"enforcement_actions_{start_date.year}_{start_date.month}.csv"
-    enforcement_action_df.to_csv(file_name, index=False)
-    print(f"Data saved to {file_name}")
-    
-    return enforcement_action_df
-
-# Define the year and month for filtering
-year = 2021
-month = 1
+# As before, we run the same function but we changed the output year.
+# This is the original code:
+# Define the year and month for filtering. In this case 2021
+# year = 2021
+# month = 1
 
 # Run the dynamic scraper function for all pages
-df = scrape_enforcement_actions(year, month)
+# df = scrape_enforcement_actions(year, month)
+
+# This is the modified code, loading the 2021 csv filed
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2021_1.csv"
+
+df_2021 = pd.read_csv(path)
 
 # Print the total number of enforcement actions
-print(f"Total enforcement actions since January 2023: {len(df)}")
+print(f"Total enforcement actions since January 2023: {len(df_2021)}")
 
 # Find the earliest enforcement action and print its details
 earliest_action = df.sort_values(by="Date").iloc[0]
@@ -372,14 +296,10 @@ print(earliest_action)
 ### 1. Plot the number of enforcement actions over time (PARTNER 2)
 
 ```{python}
-path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2021_1.csv"
-
-df_2021 = pd.read_csv(path)
-
-# Change the 'Date' column to datetime format
+# We start by changing the 'Date' column to datetime format
 df_2021['Date'] = pd.to_datetime(df_2021['Date'])
 
-# Plot the line chart using Altair
+# Finally, we plot the line chart using Altair, asuming a Y-M format
 alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
     YearMonth='yearmonth(Date)'
 ).transform_aggregate(
@@ -428,6 +348,84 @@ CCA_SEA_chart = alt.Chart(df_CCA_SEA_grouped).mark_line().encode(
     title="Criminal and Civil Actions vs. State Enforcement Agencies Over Time",
     width=350
 )
+```
+
+* based on five topics
+
+```{python}
+# Plot 2
+# Filter out Criminal and Civil Actions
+df_CCA = df[df["Category"] == "Criminal and Civil Actions"]
+# Re-categorize categories by keyword    
+def categorize_cca(description):
+    # Define keyword-to-category mapping
+    keywords = {
+        'Doctor': 'Health Care Fraud',
+        'Physician': 'Health Care Fraud',
+        'Surgeon': 'Health Care Fraud',
+        'Medicare': 'Health Care Fraud',
+        'Disabilities': 'Health Care Fraud',
+        'Healthcare': 'Health Care Fraud',
+        'Medical': 'Health Care Fraud',
+        'Health Care': 'Health Care Fraud',
+        'Medicaid': 'Health Care Fraud',
+        'Hospice': 'Health Care Fraud',
+        'Health Care Fraud': 'Health Care Fraud',
+        'Clinic': 'Health Care Fraud',
+        'Hospital': 'Health Care Fraud',
+        # Although pharmeceuticals may fall under the drug enforcement category, upon examination, most seem to fit the cateogry of Health Care Fraud better.
+        'Pharmacy': 'Health Care Fraud',
+        # The False Claims Act is most often associated with false claims to Medicare and Medicaid
+        'False Claims': 'Health Care Fraud',
+        'False Claims Act': 'Health Care Fraud',
+        
+        'Embezzlement': 'Financial Fraud',
+        'Bank': 'Financial Fraud',
+        'Financial': 'Financial Fraud',
+
+        'Drug': 'Drug Enforcement',
+        'Drugs': 'Drug Enforcement',
+        'Fentanyl': 'Drug Enforcement',
+        'Opiods': 'Drug Enforcement',
+        'Opioid': 'Drug Enforcement',
+
+        'Impersonating': 'Bribery/Corruption',
+        'Tampering': 'Bribery/Corruption',
+        'Illegally Operating': 'Bribery/Corruption',
+        'Obstructing Justice': 'Bribery/Corruption',
+        'Obstruction of Justice': 'Bribery/Corruption',
+        'Obstruction of Justice': 'Bribery/Corruption',
+        'Illegally Distributing': 'Bribery/Corruption',
+        'Conspiracy': 'Bribery/Corruption',
+        'Forgery': 'Bribery/Corruption',
+        'Perjury': 'Bribery/Corruption',
+        'Defrauding': 'Bribery/Corruption',
+        'Lying': 'Bribery/Corruption'
+    }
+    # Check for keywords in the description and assign category
+    for keyword, category in keywords.items():
+        if keyword in description:
+            return category
+    
+    # Default category if no keywords match
+    return "Other"
+# Apply the keyword function to our data frame
+df_CCA['Category'] = df_CCA['Title'].apply(categorize_cca)
+# Change Date column to just month can year
+df_CCA["Date"] = df_CCA["Date"].dt.to_period("M").astype(str)
+# Find counts of each category by month and year
+df_CCA_grouped = df_CCA.groupby(["Category", "Date"]).size().reset_index(name="Count")
+# Plot
+CCA_chart = alt.Chart(df_CCA_grouped).mark_line().encode(
+    x=alt.X("Date:T", title="Month and Year", axis=alt.Axis(format="%b %Y", labelAngle=-45)),
+    y="Count:Q",
+    color=alt.Color("Category:N", legend=alt.Legend(orient="bottom"))
+).properties(
+    title="Categories of Criminal and Civil Actions Over Time",
+    width=350
+)
+# Display both charts
+CCA_SEA_chart | CCA_chart
 ```
 
 ## Step 4: Create maps of enforcement activity
