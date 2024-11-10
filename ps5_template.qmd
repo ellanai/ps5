@@ -707,16 +707,12 @@ plt.show()
 ### 1. Merge zip code shapefile with population
 ```{python}
 #Load the shapefile
-path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp"
+path = r"/Users/evylanai/MPP Autumn '24/Python II/gz_2010_us_860_00_500k/gz_2010_us_860_00_500k.shp"
 zipcodes = gpd.read_file(path)
 
-
 #Load the census data 2020
-path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\DECENNIALDHC2020.P1_2024-11-09T173918\DECENNIALDHC2020P1-Data.csv"
+path = r"/Users/evylanai/MPP Autumn '24/Python II/DECENNIALDHC2020.P1_2024-11-09T173918/DECENNIALDHC2020.P1-Data.csv"
 census_df_2020 = pd.read_csv(path)
-
-
-
 ```
 
 ```{python}
@@ -753,10 +749,29 @@ from shapely import wkt
 districts_csv['the_geom'] = districts_csv['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
 # Turn to GeoDataFrame
 districts_shp = gpd.GeoDataFrame(districts_csv, geometry='the_geom')
-#pop_byzip = gpd.sjoin(merge_extracredit, districts_shp, how="inner", predicate="intersects")
+
+# Conduct spatial join
+pop_byzip = gpd.sjoin(merge_extracredit, districts_shp, how="inner", predicate="intersects")
 ```
 
-### 3. Map the action ratio in each district
+```{python}
+# Turn population variable to numeric 
+pop_byzip['P1_001N'] = pd.to_numeric(pop_byzip['P1_001N'], errors='coerce')
+# Aggregate population by district
+pop_bydistrict = pop_byzip.groupby("Judicial District ")["P1_001N"].sum().reset_index()
+# Merge back to get geospatial data
+districts_shp = districts_shp.merge(pop_bydistrict, on="Judicial District ")
+```
+
 ```{python}
 
 ```
+
+### 3. Map the action ratio in each district
+
+```{python}
+
+```
+
+
+
