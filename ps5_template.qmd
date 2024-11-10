@@ -345,8 +345,8 @@ CCA_SEA_chart = alt.Chart(df_CCA_SEA_grouped).mark_line().encode(
     y="Count:Q",
     color="Category:N"
 ).properties(
-    title="Criminal and Civil Actions vs. State Enforcement Agencies Over Time",
-    width=350
+    title="C.C.A. vs. S.E.A. Over Time",
+    width=200
 )
 ```
 
@@ -419,13 +419,20 @@ df_CCA_grouped = df_CCA.groupby(["Category", "Date"]).size().reset_index(name="C
 CCA_chart = alt.Chart(df_CCA_grouped).mark_line().encode(
     x=alt.X("Date:T", title="Month and Year", axis=alt.Axis(format="%b %Y", labelAngle=-45)),
     y="Count:Q",
-    color=alt.Color("Category:N", legend=alt.Legend(orient="bottom"))
+    color=alt.Color("Category:N", legend=alt.Legend(orient="left"))
 ).properties(
-    title="Categories of Criminal and Civil Actions Over Time",
-    width=350
+    title="Categories of C.C.A Over Time",
+    width=200
 )
 # Display both charts
-CCA_SEA_chart | CCA_chart
+#CCA_SEA_chart | CCA_chart
+```
+
+```{python}
+# Display both charts with adjusted spacing
+alt.hconcat(CCA_SEA_chart, CCA_chart).configure_concat(
+    spacing=5  # Adjust spacing between the two charts
+)
 ```
 
 ## Step 4: Create maps of enforcement activity
