@@ -297,7 +297,130 @@ print(earliest_action)
 * c. Test Partner's Code (PARTNER 1)
 
 ```{python}
+def scrape_enforcement_actions(year, month):
+    # Validate the start date
+    if year < 2013:
+        print("Please enter a start date year >= 2013")
+        return
+    
+    # Initialize variables
+    base_url = 'https://oig.hhs.gov/fraud/enforcement/'
+    all_titles, all_dates, all_categories, all_links, all_agencies = [], [], [], [], []
+    page_num = 1
+    
+    counter = 0
+    
+    while True:  # Loop through pages
+        counter += 1
+        print(counter)
 
+        # Record start time for the page load
+        page_start_time = time.time()
+
+        url = f"{base_url}?page={page_num}"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract titles, dates, and links on the page
+        titles = list(filter(lambda tag: tag.get('href') and '/fraud/enforcement/' in tag['href'], soup.find_all('a')))[3:]
+        date_divs = soup.find_all('div', class_='font-body-sm margin-top-1')
+
+        # Check if the page has no new data
+        if not titles:
+            break
+        
+        # Define the start date for comparison
+        start_date = datetime(year, month, 1)
+        
+        for i in range(len(titles)):
+            title = titles[i].text.strip()
+            date_text = date_divs[i].find('span', class_='text-base-dark padding-right-105').text.strip()
+            category = date_divs[i].find('li').text.strip() if date_divs[i].find('li') else ""
+            link = 'https://oig.hhs.gov' + titles[i]['href']
+                        
+            # Extract year and month only from the date
+            action_date = datetime.strptime(date_text, "%B %d, %Y")
+            action_year_month = action_date.replace(day=1)
+
+            # Break the loop if action_date is earlier than the specified start date
+            if action_year_month < start_date:
+                break
+
+            # Only add actions from the specified start year and month onward
+            all_titles.append(title)
+            all_dates.append(action_date)
+            all_categories.append(category)
+            all_links.append(link)
+
+            # Fetch agency details for each enforcement action
+            agency = "N/A"
+            agency_response = requests.get(link)
+            agency_soup = BeautifulSoup(agency_response.text, 'html.parser')
+            
+            # Find the agency within <li> tags that contain "Agency:"
+            for li in agency_soup.find_all('li'):
+                if 'Agency:' in li.get_text():
+                    agency = li.get_text().split('Agency:')[-1].strip()
+                    break  # Stop after finding the first match
+            
+            all_agencies.append(agency)
+
+        # If the action_date on this page is earlier than start_date, stop scraping
+        if action_year_month < start_date:
+            break
+
+        # Move to the next page
+        page_num += 1
+        time.sleep(1)
+
+        # Record end time for the page load and calculate elapsed time
+        page_end_time = time.time()
+        page_load_time = page_end_time - page_start_time
+        print(f"Time taken to change page {page_num}: {page_load_time:.2f} seconds")
+
+    # Save to DataFrame with Date in datetime format
+    enforcement_action_df = pd.DataFrame({
+        "Title": all_titles,
+        "Date": all_dates,
+        "Category": all_categories,
+        "Link": all_links,
+        "Agency": all_agencies
+    })
+
+    # Save DataFrame to CSV
+    file_name = f"enforcement_actions_{start_date.year}_{start_date.month}.csv"
+    enforcement_action_df.to_csv(file_name, index=False)
+    print(f"Data saved to {file_name}")
+    
+    return enforcement_action_df
+
+    return enforcement_action_df
+
+# Define the year and month for filtering
+year = 2021
+month = 1
+
+# Record the start time
+start_time = time.time()
+
+# Run the dynamic scraper function for all pages
+df = scrape_enforcement_actions(year, month)
+
+# Record the end time
+end_time = time.time()
+
+# Calculate the elapsed time
+elapsed_time = end_time - start_time
+elapsed_time_m = elapsed_time / 60
+print(f"Scraping completed in {elapsed_time_m:.2f} minutes")
+
+# Print the total number of enforcement actions
+print(f"Total enforcement actions since January 2023: {len(df)}")
+
+# Find the earliest enforcement action and print its details
+earliest_action = df.sort_values(by="Date").iloc[0]
+print("Earliest enforcement action:")
+print(earliest_action)
 ```
 
 ## Step 3: Plot data based on scraped data
@@ -345,7 +468,22 @@ alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
 * based on "Criminal and Civil Actions" vs. "State Enforcement Agencies"
 
 ```{python}
-
+# Plot 1
+# Plot Criminal and Civil Actions vs. State Enforcement Agencies
+df_CCA_SEA = df[df["Category"].isin(["Criminal and Civil Actions", "State Enforcement Agencies"])]
+# Change Date column to just month can year
+df_CCA_SEA["Date"] = df_CCA_SEA["Date"].dt.to_period("M").astype(str)
+# Group number of actions by month and year
+df_CCA_SEA_grouped = df_CCA_SEA.groupby(["Category", "Date"]).size().reset_index(name="Count")
+# Plot
+CCA_SEA_chart = alt.Chart(df_CCA_SEA_grouped).mark_line().encode(
+    x=alt.X("Date:T", title="Month and Year", axis=alt.Axis(format="%b %Y", labelAngle=-45)),
+    y="Count:Q",
+    color="Category:N"
+).properties(
+    title="Criminal and Civil Actions vs. State Enforcement Agencies Over Time",
+    width=350
+)
 ```
 
 ## Step 4: Create maps of enforcement activity
@@ -353,9 +491,95 @@ alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
 ### 1. Map by State (PARTNER 1)
 
 ```{python}
+# Cleaning the Agency column
+# Filter out U.S.-level entries, N/A entries, district-level agencies, and department-level agencies
+df_state = df[~df["Agency"].str.contains("U.S.", case=False) &
+              (df["Agency"] != "N/A") &
+              ~df["Agency"].str.contains("District", case=False) &
+              ~df["Agency"].str.contains("Department", case=False)]
 
+# Take out 'State of' for each state
+df_state["Agency"] = df_state["Agency"].str.replace("State of", "", regex=False)
+# Take out 'Attorney General' for each state
+df_state["Agency"] = df_state["Agency"].str.replace("Attorney General", "", regex=False)
+# Adjust typo in one case of Nevada
+df_state["Agency"] = df_state["Agency"].str.replace("Attorney Genera", "", regex=False)
+
+# Individual case data cleaning
+# North and South Carolina or likely district-level
+df_state = df_state[~df_state["Agency"].str.contains("North California", case=False)]
+df_state = df_state[~df_state["Agency"].str.contains("South California", case=False)]
+# Washington and Washington State are the same
+df_state["Agency"] = df_state["Agency"].str.replace("Washington State", "Washington")
+
+# Remove spaces
+# List of states with multiple words
+exceptions = [
+    "New York", "New Jersey", "New Mexico", "Rhode Island", "North Carolina",
+    "South Carolina", "West Virginia", "New Hampshire"
+]
+# Strip whitespace for all other states
+df_state["Agency"] = df_state["Agency"].apply(lambda x: x.strip() if x not in exceptions else x)
+
+# Create df for grouped enforcement actions by state
+df_state_grouped = df_state.groupby("Agency").size().reset_index(name="Count")
+# Rename 'Agency' to 'NAME' for merge
+df_state_grouped.rename(columns={"Agency": "NAME"}, inplace=True)
+# Rename Hawaii for merge
+# Using .iloc[] to access row 8 and the first column (index 0)
+df_state_grouped.iloc[8, 0] = "Hawaii"
 ```
 
+```{python}
+import geopandas as gpd
+import fiona
+import pyogrio
+shp = gpd.read_file("/Users/evylanai/MPP Autumn '24/Python II/cb_2018_us_state_20m/cb_2018_us_state_20m.shp")
+```
+
+```{python}
+# Merge grouped state df with .shp file
+shp_state_actions = pd.merge(shp, df_state_grouped, on="NAME", how="left")
+# Exlcuding some states for visuals + P.R. because it's not a state
+exclude_states = ["Alaska", "Hawaii", "Puerto Rico"]
+shp_state_actions = shp_state_actions[~shp_state_actions["NAME"].isin(exclude_states)]
+
+import matplotlib.pyplot as plt
+
+# Plot the choropleth
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+shp_state_actions.plot(
+    column="Count",
+    cmap="YlOrRd", 
+    linewidth=0.8,
+    ax=ax,
+    edgecolor="0.8",
+    legend=True,
+    # Add shading for states with NaN values
+    missing_kwds={
+        "color": "lightgray",
+        "edgecolor": "0.7",  
+    }
+)
+
+# Customize the plot
+ax.set_title("Number of Actions Enforced by State Agencies since Jan. 2021", fontsize=15)
+ax.set_axis_off()
+
+# Add note -- code help from ChatGPT
+ax.annotate(
+    'NOTE: Alaska and Hawaii not included \nfor visualization purposes. Alaska has no \nactions recorded, and Hawaii has one.', 
+    xy=(0.5, -0.06),  # Positioning the note (x, y)
+    xycoords='axes fraction',  # Coordinates relative to the axes
+    ha='right',  # Horizontal alignment
+    va='center',  # Vertical alignment
+    fontsize=12,  # Font size
+    color='black',  # Font color
+    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.5')  # Background box
+)
+plt.show()
+
+```
 
 ### 2. Map by District (PARTNER 2)
 
@@ -521,7 +745,15 @@ print(merge_extracredit.head(10))
 
 ### 2. Conduct spatial join
 ```{python}
+# Import district data
+districts_csv = pd.read_csv(r"/Users/evylanai/MPP Autumn '24/Python II/US_Attorney_Districts_Shapefile_simplified_20241110.csv")
+# Transform my df y geodataframe format
+from shapely import wkt
 
+districts_csv['the_geom'] = districts_csv['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
+# Turn to GeoDataFrame
+districts_shp = gpd.GeoDataFrame(districts_csv, geometry='the_geom')
+#pop_byzip = gpd.sjoin(merge_extracredit, districts_shp, how="inner", predicate="intersects")
 ```
 
 ### 3. Map the action ratio in each district
