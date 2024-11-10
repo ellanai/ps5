@@ -428,7 +428,39 @@ print(earliest_action)
 ### 1. Plot the number of enforcement actions over time (PARTNER 2)
 
 ```{python}
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\enforcement_actions_2021_1.csv"
 
+df_2021 = pd.read_csv(path)
+
+# Change the 'Date' column to datetime format
+df_2021['Date'] = pd.to_datetime(df_2021['Date'])
+
+# Plot the line chart using Altair
+alt.Chart(df_2021).mark_line(color='#8dd3c7').transform_timeunit(
+    YearMonth='yearmonth(Date)'
+).transform_aggregate(
+    count_ea='count()',
+    groupby=['YearMonth']
+).encode(
+    x=alt.X(
+        'YearMonth:T',
+        title='Month and Year (2021-2024)',
+        axis=alt.Axis(
+            format="%b %Y",
+            labelAngle=-45,
+            tickCount='month',
+            grid=True,
+            gridColor='lightgrey',
+            gridDash=[2, 2]  
+        )
+    ),
+    y=alt.Y('count_ea:Q', title='Number of Enforcement Actions'),
+    tooltip=['YearMonth:T', 'count_ea:Q']
+).properties(
+    title='Number of Enforcement Actions Over Time (Aggregated by Month and Year)',
+    width=600,
+    height=300
+)
 ```
 
 ### 2. Plot the number of enforcement actions categorized: (PARTNER 1)
@@ -452,89 +484,6 @@ CCA_SEA_chart = alt.Chart(df_CCA_SEA_grouped).mark_line().encode(
     title="Criminal and Civil Actions vs. State Enforcement Agencies Over Time",
     width=350
 )
-```
-
-* based on five topics
-
-```{python}
-# Plot 2
-# Filter out Criminal and Civil Actions
-df_CCA = df[df["Category"] == "Criminal and Civil Actions"]
-# Re-categorize categories by keyword    
-def categorize_cca(description):
-    # Define keyword-to-category mapping
-    keywords = {
-        'Doctor': 'Health Care Fraud',
-        'Physician': 'Health Care Fraud',
-        'Surgeon': 'Health Care Fraud',
-        'Medicare': 'Health Care Fraud',
-        'Disabilities': 'Health Care Fraud',
-        'Healthcare': 'Health Care Fraud',
-        'Medical': 'Health Care Fraud',
-        'Health Care': 'Health Care Fraud',
-        'Medicaid': 'Health Care Fraud',
-        'Hospice': 'Health Care Fraud',
-        'Health Care Fraud': 'Health Care Fraud',
-        'Clinic': 'Health Care Fraud',
-        'Hospital': 'Health Care Fraud',
-        # Although pharmeceuticals may fall under the drug enforcement category, upon examination, most seem to fit the cateogry of Health Care Fraud better.
-        'Pharmacy': 'Health Care Fraud',
-        # The False Claims Act is most often associated with false claims to Medicare and Medicaid
-        'False Claims': 'Health Care Fraud',
-        'False Claims Act': 'Health Care Fraud',
-
-        'Embezzlement': 'Financial Fraud',
-        'Bank': 'Financial Fraud',
-        'Financial': 'Financial Fraud',
-
-        'Drug': 'Drug Enforcement',
-        'Drugs': 'Drug Enforcement',
-        'Fentanyl': 'Drug Enforcement',
-        'Opiods': 'Drug Enforcement',
-        'Opioid': 'Drug Enforcement',
-
-        'Impersonating': 'Bribery/Corruption',
-        'Tampering': 'Bribery/Corruption',
-        'Illegally Operating': 'Bribery/Corruption',
-        'Obstructing Justice': 'Bribery/Corruption',
-        'Obstruction of Justice': 'Bribery/Corruption',
-        'Obstruction of Justice': 'Bribery/Corruption',
-        'Illegally Distributing': 'Bribery/Corruption',
-        'Conspiracy': 'Bribery/Corruption',
-        'Forgery': 'Bribery/Corruption',
-        'Perjury': 'Bribery/Corruption',
-        'Defrauding': 'Bribery/Corruption',
-        'Lying': 'Bribery/Corruption'
-    }
-    # Check for keywords in the description and assign category
-    for keyword, category in keywords.items():
-        if keyword in description:
-            return category
-    
-    # Default category if no keywords match
-    return "Other"
-
-# Apply the keyword function to our data frame
-df_CCA['Category'] = df_CCA['Title'].apply(categorize_cca)
-
-# Change Date column to just month can year
-df_CCA["Date"] = df_CCA["Date"].dt.to_period("M").astype(str)
-
-# Find counts of each category by month and year
-df_CCA_grouped = df_CCA.groupby(["Category", "Date"]).size().reset_index(name="Count")
-
-# Plot
-CCA_chart = alt.Chart(df_CCA_grouped).mark_line().encode(
-    x=alt.X("Date:T", title="Month and Year", axis=alt.Axis(format="%b %Y", labelAngle=-45)),
-    y="Count:Q",
-    color=alt.Color("Category:N", legend=alt.Legend(orient="bottom"))
-).properties(
-    title="Categories of Criminal and Civil Actions Over Time",
-    width=350
-)
-
-# Display both charts
-CCA_SEA_chart | CCA_chart
 ```
 
 ## Step 4: Create maps of enforcement activity
@@ -635,14 +584,163 @@ plt.show()
 ### 2. Map by District (PARTNER 2)
 
 ```{python}
+import geopandas as gpd
+import fiona
+import pyogrio
+from shapely import wkt
+import matplotlib.pyplot as plt
+```
+
+```{python}
+# Load the US Attorney df
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\US_Attorney_Districts_Shapefile_simplified_20241108.csv"
+
+us_attorney_df = pd.read_csv(path)
+
+## Rename our interest variable
+us_attorney_df.rename(columns={'Judicial District ': 'District'}, inplace=True)
+
+## Rename one of the districts so it matches our original df
+us_attorney_df['District'] = us_attorney_df['District'].replace({
+    'District of District of Columbia': 'District of Columbia'
+})
+
+# Apply a function to create a new column in your DataFrame
+def extract_district(agency):
+    if isinstance(agency, str):
+        if "Attorney's Office," in agency:
+            return agency.split("Attorney's Office,")[-1].strip()
+        elif 'Attorney General,' in agency:
+            return agency.split('Attorney General,')[-1].strip()
+        elif 'Western District of Oklahoma' in agency:
+            return 'Western District of Oklahoma'
+        elif 'Western District of Pennsylvania' in agency:
+            return 'Western District of Pennsylvania'
+        elif 'District of Connecticut' in agency:
+            return 'District of Connecticut'
+        elif 'District of New Jersey' in agency:
+            return 'District of New Jersey'
+        elif 'Eastern District of New York' in agency:
+            return 'Eastern District of New York'
+        elif 'Eastern District of North Carolina' in agency:
+            return 'Eastern District of North Carolina'
+    return None
+
+df_2021['District'] = df_2021['Agency'].apply(extract_district)
+
+## Filter out only the Judicial District
+df_2021_districts = df_2021[df_2021['District'].notna()]
+
+## Renaming remaining districts
+district_replacements = {
+    'District of Massachusetts †††': 'District of Massachusetts',
+    'District of South Dakota ††': 'District of South Dakota',
+    'Southern District of New York ††': 'Southern District of New York',
+    'Western District of Virginia ††': 'Western District of Virginia',
+    'District of Idaho Boise': 'District of Idaho'
+}
+
+df_2021_districts['District'] = df_2021_districts['District'].replace(district_replacements)
+
+df_2021_districts_2 = df_2021_districts.groupby('District').size().reset_index(name = 'count_ea')
+
+# Merge with US Attorney's database
+merge_partner2 = pd.merge(us_attorney_df, df_2021_districts_2, on='District', how='left')
+
+# Transform my df y geodataframe format
+merge_partner2['the_geom'] = merge_partner2['the_geom'].apply(lambda x: wkt.loads(x) if isinstance(x, str) else x)
+print(merge_partner2['the_geom'].apply(type).value_counts())
+
+merge_partner2_geo = gpd.GeoDataFrame(merge_partner2, geometry='the_geom')
+
 
 ```
+
+```{python}
+# Finally, we create the choropleth
+exclude_states = ["District of Alaska", 
+"District of Hawaii", 
+"District of Puerto Rico",
+"District of US Virgin Islands",
+"District of Guam",
+"District of Northern Marianas Islands"]
+
+merge_partner2_geo = merge_partner2_geo[~merge_partner2_geo["District"].isin(exclude_states)]
+
+# Plot the choropleth
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+merge_partner2_geo.plot(
+    column="count_ea",
+    cmap="YlOrRd", 
+    linewidth=0.8,
+    ax=ax,
+    edgecolor="0.8",
+    legend=True,
+    # Add shading for states with NaN values
+    missing_kwds={
+        "color": "lightgray",
+        "edgecolor": "0.7",  
+    }
+)
+
+# Customize the plot
+ax.set_title("Number of Enforcement Actions by U.S. Attorney District since Jan. 2021", fontsize=15)
+ax.set_axis_off()
+
+# Add note -- code help from ChatGPT
+ax.annotate(
+    'NOTE: Six Judicial Districts were removed due to: \n(i) only 1 enforcement action or NA value, and \n(ii) visualization purposes.', 
+    xy=(0.5, -0.06),  # Positioning the note (x, y)
+    xycoords='axes fraction',  # Coordinates relative to the axes
+    ha='right',  # Horizontal alignment
+    va='center',  # Vertical alignment
+    fontsize=12,  # Font size
+    color='black',  # Font color
+    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.5')  # Background box
+)
+plt.show()
+```
+
 
 ## Extra Credit
 
 ### 1. Merge zip code shapefile with population
 ```{python}
+#Load the shapefile
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp"
+zipcodes = gpd.read_file(path)
 
+
+#Load the census data 2020
+path = r"C:\Users\msald\OneDrive\Escritorio\UChicago\3. Classes\2425\1. Autum\2. PythonII\ps5\DECENNIALDHC2020.P1_2024-11-09T173918\DECENNIALDHC2020P1-Data.csv"
+census_df_2020 = pd.read_csv(path)
+
+
+
+```
+
+```{python}
+#print(zipcodes.columns)
+#print(zipcodes.head(10))
+
+#print(census_df_2020.columns)
+#print(census_df_2020.head(10))
+
+def extract_zipcode(zipcode):
+    if isinstance(zipcode, str):
+        if "ZCTA5" in zipcode:
+            return zipcode.split("ZCTA5")[-1].strip()
+    return None
+
+census_df_2020['ZCTA5'] = census_df_2020['NAME'].apply(extract_zipcode)
+
+merge_extracredit = pd.merge(zipcodes, census_df_2020[['ZCTA5', 'P1_001N']], on='ZCTA5', how='left')
+
+```
+
+```{python}
+print(merge_extracredit.head(10))
+#print(census_df_2020['ZCTA5'].dtype)
 ```
 
 ### 2. Conduct spatial join
